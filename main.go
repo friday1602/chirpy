@@ -18,13 +18,22 @@ func middlewareCors(next http.Handler) http.Handler {
 	})
 }
 
+func readiness(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write([]byte("OK"))
+}
+
 func main() {
 	mux := http.NewServeMux()
 
-	mux.Handle("/", http.FileServer(http.Dir(".")))
-	fileServer := http.FileServer(http.Dir("./assets"))
-	mux.Handle("/assets/", http.StripPrefix("/assets", fileServer))
-	log.Print(fileServer)
+	fileServer := http.FileServer(http.Dir("./app"))
+	mux.Handle("/app/", http.StripPrefix("/app", fileServer))
+
+	fileServer = http.FileServer(http.Dir("./app/assets"))
+	mux.Handle("/app/assets/", http.StripPrefix("/app/assets", fileServer))
+
+	mux.HandleFunc("/healthz", readiness)
 
 	corsMux := middlewareCors(mux)
 
