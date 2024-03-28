@@ -21,7 +21,7 @@ func main() {
 	mux.HandleFunc("/api/reset", apiCfg.reset)
 
 	fileServer = http.FileServer(http.Dir("./app/assets"))
-	mux.Handle("/app/assets/", http.StripPrefix("/app/assets", fileServer))
+	mux.Handle("/app/assets/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app/assets", fileServer)))
 
 	mux.HandleFunc("GET /api/healthz", readiness)
 
