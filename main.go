@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 )
@@ -14,14 +14,16 @@ func main() {
 	mux := http.NewServeMux()
 	apiCfg := &apiConfig{}
 	fileServer := http.FileServer(http.Dir("./app"))
-	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer)))
-	mux.HandleFunc("GET /metrics", apiCfg.metrics)
-	mux.HandleFunc("/reset", apiCfg.reset)
+	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer))) //* for wildcard
+
+	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
+
+	mux.HandleFunc("/api/reset", apiCfg.reset)
 
 	fileServer = http.FileServer(http.Dir("./app/assets"))
 	mux.Handle("/app/assets/", http.StripPrefix("/app/assets", fileServer))
 
-	mux.HandleFunc("GET /healthz", readiness)
+	mux.HandleFunc("GET /api/healthz", readiness)
 
 	corsMux := middlewareCors(mux)
 
@@ -41,7 +43,25 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 
 // metrics prints counts to the body
 func (cfg *apiConfig) metrics(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hits: %d", cfg.fileserverHits)
+	hits := cfg.fileserverHits
+	tmpl := `
+	<!DOCTYPE html>
+	<html>
+	<body>
+		<h1>Welcome, Chirpy Admin</h1>
+		<p>Chirpy has been visited {{.}} times!</p>
+	</body>
+	
+	</html>
+	`
+	t, err := template.New("admin").Parse(tmpl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	if err := t.Execute(w, hits); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // reset resets counts
