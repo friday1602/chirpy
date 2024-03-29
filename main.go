@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -8,6 +9,15 @@ import (
 
 type apiConfig struct {
 	fileserverHits int
+}
+type chripyParams struct {
+	Body string `json:"body"`
+}
+type errorResponse struct {
+	Error string `json:"error"`
+}
+type successReponse struct {
+	Valid bool `json:"valid"`
 }
 
 func main() {
@@ -25,12 +35,48 @@ func main() {
 
 	mux.HandleFunc("GET /api/healthz", readiness)
 
+	mux.HandleFunc("POST /api/validate_chirp", validateChirpy)
+
 	corsMux := middlewareCors(mux)
 
 	log.Print("starting server on :8080")
 	err := http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
 }
+
+// validate if chirpy is valid. if valid response json valid body. if not response json error body
+func validateChirpy(w http.ResponseWriter, r *http.Request) {
+
+	// decode json body and check for error
+	chirpyParam := chripyParams{}
+	err := json.NewDecoder(r.Body).Decode(&chirpyParam)
+	if err != nil {
+		responseErrorInJsonBody(w, "Something went wrong", http.StatusBadRequest)
+		return
+	}
+
+	// check if json body length is more than 140 characters long.
+	if len([]rune(chirpyParam.Body)) > 140 {
+		responseErrorInJsonBody(w, "Chirp is too long", http.StatusBadRequest)
+		return
+	}
+
+	// chirp is valid response valid successReponse struct encoded to json
+	json.NewEncoder(w).Encode(successReponse{Valid: true})
+}
+
+// response specific error message encode to json body if any error occurs.
+func responseErrorInJsonBody(w http.ResponseWriter, errorMessage string, statusCode int) {
+	errorResp, err := json.Marshal(errorResponse{Error: errorMessage})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("error marshaling json: %s", err)
+		return
+	}
+	w.WriteHeader(statusCode)
+	w.Write(errorResp)
+}
+
 
 // middlewareMetrics gathers amout of request to the page
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
