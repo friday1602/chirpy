@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type apiConfig struct {
@@ -16,8 +17,11 @@ type chripyParams struct {
 type errorResponse struct {
 	Error string `json:"error"`
 }
-type successReponse struct {
+type successResponse struct {
 	Valid bool `json:"valid"`
+}
+type cleanBodyResponse struct {
+	CleanedBody string `json:"cleaned_body"`
 }
 
 func main() {
@@ -60,9 +64,21 @@ func validateChirpy(w http.ResponseWriter, r *http.Request) {
 		responseErrorInJsonBody(w, "Chirp is too long", http.StatusBadRequest)
 		return
 	}
+	// replace all profanes with ****
+	badWords := []string{"kerfuffle", "sharbert", "fornax"}
+	stringChirpy := strings.Split(chirpyParam.Body, " ")
+	for i, word := range stringChirpy {
+		for _, badWord := range badWords {
+			if strings.ToLower(word) == badWord {
+				stringChirpy[i] = "****"
+			}
+		}
+	}
+	cleanedChirpy := strings.Join(stringChirpy, " ")
+	json.NewEncoder(w).Encode(cleanBodyResponse{CleanedBody: cleanedChirpy})
 
 	// chirp is valid response valid successReponse struct encoded to json
-	json.NewEncoder(w).Encode(successReponse{Valid: true})
+	// json.NewEncoder(w).Encode(successResponse{Valid: true})
 }
 
 // response specific error message encode to json body if any error occurs.
@@ -76,7 +92,6 @@ func responseErrorInJsonBody(w http.ResponseWriter, errorMessage string, statusC
 	w.WriteHeader(statusCode)
 	w.Write(errorResp)
 }
-
 
 // middlewareMetrics gathers amout of request to the page
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
