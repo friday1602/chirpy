@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/Friday1602/chirpy/database"
 )
 
 type apiConfig struct {
@@ -16,12 +18,6 @@ type chripyParams struct {
 }
 type errorResponse struct {
 	Error string `json:"error"`
-}
-type successResponse struct {
-	Valid bool `json:"valid"`
-}
-type cleanBodyResponse struct {
-	CleanedBody string `json:"cleaned_body"`
 }
 
 func main() {
@@ -39,7 +35,7 @@ func main() {
 
 	mux.HandleFunc("GET /api/healthz", readiness)
 
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpy)
+	mux.HandleFunc("POST /api/chirps", validateChirpy)
 
 	corsMux := middlewareCors(mux)
 
@@ -75,10 +71,20 @@ func validateChirpy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	cleanedChirpy := strings.Join(stringChirpy, " ")
-	json.NewEncoder(w).Encode(cleanBodyResponse{CleanedBody: cleanedChirpy})
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	createdDB, err := db.CreateChirp(cleanedChirpy)
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(&createdDB)
 
 	// chirp is valid response valid successReponse struct encoded to json
-	// json.NewEncoder(w).Encode(successResponse{Valid: true})
+
 }
 
 // response specific error message encode to json body if any error occurs.
