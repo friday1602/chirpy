@@ -36,6 +36,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", readiness)
 
 	mux.HandleFunc("POST /api/chirps", validateChirpy)
+	mux.HandleFunc("GET /api/chirps", getChirpy)
 
 	corsMux := middlewareCors(mux)
 
@@ -81,10 +82,29 @@ func validateChirpy(w http.ResponseWriter, r *http.Request) {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(&createdDB)
-
 	// chirp is valid response valid successReponse struct encoded to json
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(&createdDB)
+	
+}
 
+func getChirpy(w http.ResponseWriter, r *http.Request) {
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	chirps, err := db.GetChirps()
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.Marshal(chirps)
+	if err != nil {
+		responseErrorInJsonBody(w, "Error marshalling json", http.StatusInternalServerError)
+		return
+	}
+	w.Write(resp)
 }
 
 // response specific error message encode to json body if any error occurs.

@@ -48,6 +48,11 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	nextID := len(dbStructure.Chirps) + 1
 
 	dbStructure.Chirps[nextID] = Chirp{Body: body, ID: nextID}
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return Chirp{}, err
+	}
+
 	return dbStructure.Chirps[nextID], nil
 }
 
