@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Friday1602/chirpy/database"
@@ -37,6 +38,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/chirps", validateChirpy)
 	mux.HandleFunc("GET /api/chirps", getChirpy)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirpyFromID)
 
 	corsMux := middlewareCors(mux)
 
@@ -85,7 +87,7 @@ func validateChirpy(w http.ResponseWriter, r *http.Request) {
 	// chirp is valid response valid successReponse struct encoded to json
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(&createdDB)
-	
+
 }
 
 func getChirpy(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +107,41 @@ func getChirpy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(resp)
+}
+
+// get chirpy from specific ID
+func getChirpyFromID(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	ID, err := strconv.Atoi(chirpID)
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	chirps, err := db.GetChirps()
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	
+	// check if ID is in database ID range
+	/*if len(chirpID) < ID || ID <= 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	
+	}*/
+
+	resp, err := json.Marshal(chirps[ID-1])
+	if err != nil {
+		responseErrorInJsonBody(w, "Error marshalling json", http.StatusInternalServerError)
+		return
+	}
+	w.Write(resp)
+
 }
 
 // response specific error message encode to json body if any error occurs.
