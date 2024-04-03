@@ -127,13 +127,12 @@ func getChirpyFromID(w http.ResponseWriter, r *http.Request) {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// check if ID is in database ID range
-	/*if len(chirpID) < ID || ID <= 0 {
+	if ID > len(chirps) || ID <= 0 {
 		w.WriteHeader(http.StatusNotFound)
 		return
-	
-	}*/
+	}
 
 	resp, err := json.Marshal(chirps[ID-1])
 	if err != nil {
