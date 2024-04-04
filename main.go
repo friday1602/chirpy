@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Friday1602/chirpy/database"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type apiConfig struct {
@@ -18,7 +19,8 @@ type chripyParams struct {
 	Body string `json:"body"`
 }
 type user struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 type errorResponse struct {
 	Error string `json:"error"`
@@ -45,12 +47,10 @@ func main() {
 	mux.HandleFunc("POST /api/users", createUser)
 
 	corsMux := middlewareCors(mux)
-
 	log.Print("starting server on :8080")
 	err := http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
 }
-
 
 // create users
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -61,13 +61,21 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		responseErrorInJsonBody(w, "Something went wrong", http.StatusBadRequest)
 		return
 	}
+	// hash the password using bcrypt
+	cost := bcrypt.DefaultCost
+	password, err := bcrypt.GenerateFromPassword([]byte(userReq.Password), cost)
+	if err != nil {
+		responseErrorInJsonBody(w, "Error creating user", http.StatusBadRequest)
+		return
+	}
+
 	// initiated user database and created user database belong to request
 	userDB, err := database.NewUserDB("userDatabase.json")
 	if err != nil {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	createdDB, err := userDB.CreateUser(userReq.Email)
+	createdDB, err := userDB.CreateUser(userReq.Email, password)
 	if err != nil {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -82,7 +90,6 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
 
 // validate if chirpy is valid. if valid response json valid body. if not response json error body
 func validateChirpy(w http.ResponseWriter, r *http.Request) {

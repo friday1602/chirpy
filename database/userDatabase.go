@@ -10,8 +10,9 @@ import (
 )
 
 type User struct {
-	Email string `json:"email"`
-	ID    int    `json:"id"`
+	Email    string `json:"email"`
+	ID       int    `json:"id"`
+	Password []byte `json:"-"`
 }
 
 type DBUserStructure struct {
@@ -32,7 +33,7 @@ func NewUserDB(path string) (*DB, error) {
 }
 
 // create a new chirp and saves it to disk
-func (db *DB) CreateUser(body string) (User, error) {
+func (db *DB) CreateUser(body string, password []byte) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
@@ -43,7 +44,7 @@ func (db *DB) CreateUser(body string) (User, error) {
 	}
 	nextID := len(dbStructure.Users) + 1
 
-	dbStructure.Users[nextID] = User{Email: body, ID: nextID}
+	dbStructure.Users[nextID] = User{Email: body, ID: nextID, Password: password}
 	err = db.writeUserDB(dbStructure)
 	if err != nil {
 		return User{}, err
