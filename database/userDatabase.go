@@ -12,7 +12,7 @@ import (
 type User struct {
 	Email    string `json:"email"`
 	ID       int    `json:"id"`
-	Password []byte `json:"-"`
+	Password []byte `json:"password"`
 }
 
 type DBUserStructure struct {
@@ -54,7 +54,7 @@ func (db *DB) CreateUser(body string, password []byte) (User, error) {
 }
 
 // GetChirps returns all chirps in the database
-func (db *DB) GetUserChirps() ([]User, error) {
+func (db *DB) GetUser() ([]User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 

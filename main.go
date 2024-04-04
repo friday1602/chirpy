@@ -45,11 +45,54 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", getChirpy)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirpyFromID)
 	mux.HandleFunc("POST /api/users", createUser)
+	mux.HandleFunc("POST /api/login", userValidation)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
 	err := http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
+}
+
+// validate user logging in
+func userValidation(w http.ResponseWriter, r *http.Request) {
+	// decode request to struct
+	userReq := user{}
+	err := json.NewDecoder(r.Body).Decode(&userReq)
+	if err != nil {
+		responseErrorInJsonBody(w, "Something went wrong", http.StatusBadRequest)
+		return
+	}
+
+	// connect to database
+	db, err := database.NewUserDB("userDatabase.json")
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// get users
+	users, err := db.GetUser()
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// range all users in database compare to the request
+	for _, user := range users {
+		if user.Email == userReq.Email {
+			err := bcrypt.CompareHashAndPassword(user.Password, []byte(userReq.Password))
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			resp, err := json.Marshal(user)
+			if err != nil {
+				responseErrorInJsonBody(w, "Error mashalling json", http.StatusInternalServerError)
+				return
+			}
+			w.Write(resp)
+		}
+	}
 }
 
 // create users
@@ -82,8 +125,15 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create completed response with 201 and encoding user data from database
+	// using anonymous struct to response specific field (exclude password)
 	w.WriteHeader(http.StatusCreated)
-	err = json.NewEncoder(w).Encode(createdDB)
+	err = json.NewEncoder(w).Encode(struct {
+		Email string `json:"email"`
+		ID    int    `json:"id"`
+	}{
+		Email: createdDB.Email,
+		ID:    createdDB.ID,
+	})
 	if err != nil {
 		responseErrorInJsonBody(w, "Error Encoding json", http.StatusInternalServerError)
 		return
