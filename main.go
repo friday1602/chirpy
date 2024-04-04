@@ -21,6 +21,7 @@ type chripyParams struct {
 type user struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	ExpiresInSeconds int `json:"expires_in_seconds"`
 }
 type errorResponse struct {
 	Error string `json:"error"`
@@ -85,11 +86,11 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			resp, err := json.Marshal(struct{
-				ID int `json:"id"`
+			resp, err := json.Marshal(struct {
+				ID    int    `json:"id"`
 				Email string `json:"email"`
 			}{
-				ID: user.ID,
+				ID:    user.ID,
 				Email: user.Email,
 			})
 			if err != nil {
@@ -119,7 +120,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// initiated user database 
+	// initiated user database
 	db, err := database.NewUserDB("userDatabase.json")
 	if err != nil {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
