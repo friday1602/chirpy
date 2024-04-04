@@ -85,7 +85,13 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			resp, err := json.Marshal(user)
+			resp, err := json.Marshal(struct{
+				ID int `json:"id"`
+				Email string `json:"email"`
+			}{
+				ID: user.ID,
+				Email: user.Email,
+			})
 			if err != nil {
 				responseErrorInJsonBody(w, "Error mashalling json", http.StatusInternalServerError)
 				return
@@ -104,6 +110,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		responseErrorInJsonBody(w, "Something went wrong", http.StatusBadRequest)
 		return
 	}
+
 	// hash the password using bcrypt
 	cost := bcrypt.DefaultCost
 	password, err := bcrypt.GenerateFromPassword([]byte(userReq.Password), cost)
@@ -112,13 +119,28 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// initiated user database and created user database belong to request
-	userDB, err := database.NewUserDB("userDatabase.json")
+	// initiated user database 
+	db, err := database.NewUserDB("userDatabase.json")
 	if err != nil {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	createdDB, err := userDB.CreateUser(userReq.Email, password)
+
+	// check if user exists
+	users, err := db.GetUser()
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	for _, user := range users {
+		if user.Email == userReq.Email {
+			responseErrorInJsonBody(w, "This Email already exists", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// create new user
+	createdDB, err := db.CreateUser(userReq.Email, password)
 	if err != nil {
 		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
 		return
