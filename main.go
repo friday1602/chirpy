@@ -17,6 +17,9 @@ type apiConfig struct {
 type chripyParams struct {
 	Body string `json:"body"`
 }
+type user struct {
+	Email string `json:"email"`
+}
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -39,6 +42,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", validateChirpy)
 	mux.HandleFunc("GET /api/chirps", getChirpy)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirpyFromID)
+	mux.HandleFunc("POST /api/users", createUser)
 
 	corsMux := middlewareCors(mux)
 
@@ -46,6 +50,39 @@ func main() {
 	err := http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
 }
+
+
+// create users
+func createUser(w http.ResponseWriter, r *http.Request) {
+	//decode request json to user struct
+	userReq := user{}
+	err := json.NewDecoder(r.Body).Decode(&userReq)
+	if err != nil {
+		responseErrorInJsonBody(w, "Something went wrong", http.StatusBadRequest)
+		return
+	}
+	// initiated user database and created user database belong to request
+	userDB, err := database.NewUserDB("userDatabase.json")
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	createdDB, err := userDB.CreateUser(userReq.Email)
+	if err != nil {
+		responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// create completed response with 201 and encoding user data from database
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(createdDB)
+	if err != nil {
+		responseErrorInJsonBody(w, "Error Encoding json", http.StatusInternalServerError)
+		return
+	}
+
+}
+
 
 // validate if chirpy is valid. if valid response json valid body. if not response json error body
 func validateChirpy(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +123,11 @@ func validateChirpy(w http.ResponseWriter, r *http.Request) {
 	}
 	// chirp is valid response valid successReponse struct encoded to json
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(&createdDB)
+	err = json.NewEncoder(w).Encode(&createdDB)
+	if err != nil {
+		responseErrorInJsonBody(w, "Error Encoding json", http.StatusInternalServerError)
+		return
+	}
 
 }
 
