@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
+	"github.com/joho/godotenv"
 	"github.com/Friday1602/chirpy/database"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -28,6 +28,11 @@ type errorResponse struct {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("error loading .env file")
+	}
+	
 	mux := http.NewServeMux()
 	apiCfg := &apiConfig{}
 	fileServer := http.FileServer(http.Dir("./app"))
