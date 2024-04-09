@@ -2,13 +2,18 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
-	"github.com/joho/godotenv"
+	"time"
+
 	"github.com/Friday1602/chirpy/database"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,9 +24,9 @@ type chripyParams struct {
 	Body string `json:"body"`
 }
 type user struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	ExpiresInSeconds int `json:"expires_in_seconds"`
+	Email            string `json:"email"`
+	Password         string `json:"password"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
 }
 type errorResponse struct {
 	Error string `json:"error"`
@@ -55,7 +60,7 @@ func main() {
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
-	err := http.ListenAndServe(":8080", corsMux)
+	err = http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
 }
 
@@ -91,12 +96,36 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+
+			timeToExpire := time.Hour * 24
+			if userReq.ExpiresInSeconds != 0 {
+				timeToExpire = time.Second * time.Duration(userReq.ExpiresInSeconds)
+			}
+			// create claims
+			claims := &jwt.RegisteredClaims{
+				Issuer:    "chirpy",
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpire)),
+				Subject: strconv.Itoa(user.ID),
+			}
+			// get jwt secret from .env file
+			jwtSecret := os.Getenv("JWT_SECRET")
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			ss, err := token.SignedString([]byte(jwtSecret))
+			if err != nil {
+				fmt.Println(jwtSecret, err)
+				responseErrorInJsonBody(w, "Error creating token", http.StatusInternalServerError)
+				return
+			}
+	
 			resp, err := json.Marshal(struct {
 				ID    int    `json:"id"`
 				Email string `json:"email"`
+				Token string `json:"token"`
 			}{
 				ID:    user.ID,
 				Email: user.Email,
+				Token: ss,
 			})
 			if err != nil {
 				responseErrorInJsonBody(w, "Error mashalling json", http.StatusInternalServerError)
