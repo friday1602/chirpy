@@ -57,11 +57,19 @@ func main() {
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirpyFromID)
 	mux.HandleFunc("POST /api/users", createUser)
 	mux.HandleFunc("POST /api/login", userValidation)
+	mux.HandleFunc("PUT /api/users", updateUser)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
 	err = http.ListenAndServe(":8080", corsMux)
 	log.Fatal(err)
+}
+
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	jwtToken := strings.Replace(token, "Bearer ", "", 1)
+	jwt.ParseWithClaims(jwtToken, )
+
 }
 
 // validate user logging in
