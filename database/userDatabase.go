@@ -116,3 +116,29 @@ func (db *DB) writeUserDB(dbUserStructure DBUserStructure) error {
 	return nil
 
 }
+
+// updateUserDB updates existing user password
+func (db *DB) UpdateUserDB(ID int, body string,password []byte) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	// load current db to check then add the new data to it with new ID
+	dbStructure, err := db.loadUserDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	// update password of user
+	dbStructure.Users[ID] = User{
+		Email:    body,
+		ID:       ID,
+		Password: password,
+	}
+
+	err = db.writeUserDB(dbStructure)
+	if err != nil {
+		return User{}, err
+	}
+	return dbStructure.Users[ID], nil
+
+}

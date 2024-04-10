@@ -32,12 +32,17 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+type CustomClaims struct {
+	UserID int `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("error loading .env file")
 	}
-	
+
 	mux := http.NewServeMux()
 	apiCfg := &apiConfig{}
 	fileServer := http.FileServer(http.Dir("./app"))
@@ -66,9 +71,59 @@ func main() {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("Authorization")
-	jwtToken := strings.Replace(token, "Bearer ", "", 1)
-	jwt.ParseWithClaims(jwtToken, )
+	authHeader := r.Header.Get("Authorization")
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	tokenFromHeader := authHeader[len("Bearer "):]
+	token, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		http.Error(w, "Invalid Token", http.StatusUnauthorized)
+		return
+	}
+
+	if claims, ok := token.Claims.(*CustomClaims); ok {
+		db, err := database.NewUserDB("userDatabase.json")
+		if err != nil {
+			responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		userReq := user{}
+		err = json.NewDecoder(r.Body).Decode(&userReq)
+		if err != nil {
+			responseErrorInJsonBody(w, "Error decoding json", http.StatusBadRequest)
+			return
+		}
+
+		cost := bcrypt.DefaultCost
+		password, err := bcrypt.GenerateFromPassword([]byte(userReq.Password), cost)
+		if err != nil {
+			responseErrorInJsonBody(w, "Error updating password", http.StatusBadRequest)
+			return
+		}
+		user, err := db.UpdateUserDB(claims.UserID, userReq.Email, password)
+		if err != nil {
+			responseErrorInJsonBody(w, "Error updating password", http.StatusInternalServerError)
+			return
+		}
+
+		resp, err := json.Marshal(struct{
+			Email string `json:"email"`
+			ID int `json:"id"`
+		}{
+			Email: user.Email,
+			ID: user.ID,
+		})
+		if err != nil {
+			responseErrorInJsonBody(w, "Error marshalling json", http.StatusInternalServerError)
+			return
+		}
+		w.Write(resp)
+	} else {
+		http.Error(w, "Unknow Claims type", http.StatusBadRequest)
+		return
+	}
 
 }
 
@@ -110,11 +165,14 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				timeToExpire = time.Second * time.Duration(userReq.ExpiresInSeconds)
 			}
 			// create claims
-			claims := &jwt.RegisteredClaims{
-				Issuer:    "chirpy",
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpire)),
-				Subject: strconv.Itoa(user.ID),
+			claims := CustomClaims{
+				UserID: user.ID,
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer:    "chirpy",
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpire)),
+					Subject:   strconv.Itoa(user.ID),
+				},
 			}
 			// get jwt secret from .env file
 			jwtSecret := os.Getenv("JWT_SECRET")
@@ -125,7 +183,7 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				responseErrorInJsonBody(w, "Error creating token", http.StatusInternalServerError)
 				return
 			}
-	
+
 			resp, err := json.Marshal(struct {
 				ID    int    `json:"id"`
 				Email string `json:"email"`
