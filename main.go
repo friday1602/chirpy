@@ -24,9 +24,8 @@ type chripyParams struct {
 	Body string `json:"body"`
 }
 type user struct {
-	Email            string `json:"email"`
-	Password         string `json:"password"`
-	ExpiresInSeconds int    `json:"expires_in_seconds"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 type errorResponse struct {
 	Error string `json:"error"`
@@ -63,6 +62,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", createUser)
 	mux.HandleFunc("POST /api/login", userValidation)
 	mux.HandleFunc("PUT /api/users", updateUser)
+	mux.HandleFunc("POST /api/refresh", refreshTokenAuth)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
@@ -70,11 +70,34 @@ func main() {
 	log.Fatal(err)
 }
 
+// POST /api/refresh
+func refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
+	authString := r.Header.Get("Authorization")
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	tokenFromHeader := authString[len("Bearer "):]
+	token, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		http.Error(w, "Invalid Token", http.StatusUnauthorized)
+		return
+	}
+	if claims, ok := token.Claims.(*CustomClaims); ok {
+		if claims.Issuer != "chirpy-refresh" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	}
+}
+
+// PUT /api/users endpoint
 func updateUser(w http.ResponseWriter, r *http.Request) {
+	// get token from auth header
 	authHeader := r.Header.Get("Authorization")
 
 	jwtSecret := os.Getenv("JWT_SECRET")
-	tokenFromHeader := authHeader[len("Bearer "):]
+	tokenFromHeader := authHeader[len("Bearer "):] // trim Bearer from auth.. the rest is token
 	token, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
@@ -84,6 +107,10 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
+		if claims.Issuer != "chirpy-access" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		db, err := database.NewUserDB("userDatabase.json")
 		if err != nil {
 			responseErrorInJsonBody(w, "Internal Server Error", http.StatusInternalServerError)
@@ -108,12 +135,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		resp, err := json.Marshal(struct{
+		resp, err := json.Marshal(struct {
 			Email string `json:"email"`
-			ID int `json:"id"`
+			ID    int    `json:"id"`
 		}{
 			Email: user.Email,
-			ID: user.ID,
+			ID:    user.ID,
 		})
 		if err != nil {
 			responseErrorInJsonBody(w, "Error marshalling json", http.StatusInternalServerError)
@@ -127,7 +154,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// validate user logging in
+// validate user logging in POST /api/login
 func userValidation(w http.ResponseWriter, r *http.Request) {
 	// decode request to struct
 	userReq := user{}
@@ -160,24 +187,44 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			timeToExpire := time.Hour * 24
-			if userReq.ExpiresInSeconds != 0 {
-				timeToExpire = time.Second * time.Duration(userReq.ExpiresInSeconds)
-			}
-			// create claims
-			claims := CustomClaims{
+			timeToExpireAccessToken := time.Hour            // 1 Hour
+			timeToExpireRefreshToken := time.Hour * 24 * 60 // 60 Days
+
+			// create claims for access token
+			claimsAccessToken := CustomClaims{
 				UserID: user.ID,
 				RegisteredClaims: jwt.RegisteredClaims{
-					Issuer:    "chirpy",
+					Issuer:    "chirpy-access",
 					IssuedAt:  jwt.NewNumericDate(time.Now()),
-					ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpire)),
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpireAccessToken)),
+					Subject:   strconv.Itoa(user.ID),
+				},
+			}
+
+			// create claims for refresh token
+			claimsRefreshToken := CustomClaims{
+				UserID: user.ID,
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer:    "chirpy-refresh",
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeToExpireRefreshToken)),
 					Subject:   strconv.Itoa(user.ID),
 				},
 			}
 			// get jwt secret from .env file
 			jwtSecret := os.Getenv("JWT_SECRET")
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			ss, err := token.SignedString([]byte(jwtSecret))
+			// create access and refresh tokens
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsAccessToken)
+			refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsRefreshToken)
+
+			signedStringToken, err := token.SignedString([]byte(jwtSecret))
+			if err != nil {
+				fmt.Println(jwtSecret, err)
+				responseErrorInJsonBody(w, "Error creating token", http.StatusInternalServerError)
+				return
+			}
+
+			signedStringRefreshToken, err := refreshToken.SignedString([]byte(jwtSecret))
 			if err != nil {
 				fmt.Println(jwtSecret, err)
 				responseErrorInJsonBody(w, "Error creating token", http.StatusInternalServerError)
@@ -185,24 +232,28 @@ func userValidation(w http.ResponseWriter, r *http.Request) {
 			}
 
 			resp, err := json.Marshal(struct {
-				ID    int    `json:"id"`
-				Email string `json:"email"`
-				Token string `json:"token"`
+				ID           int    `json:"id"`
+				Email        string `json:"email"`
+				Token        string `json:"token"`
+				RefreshToken string `json:"refresh_token"`
 			}{
-				ID:    user.ID,
-				Email: user.Email,
-				Token: ss,
+				ID:           user.ID,
+				Email:        user.Email,
+				Token:        signedStringToken,
+				RefreshToken: signedStringRefreshToken,
 			})
 			if err != nil {
 				responseErrorInJsonBody(w, "Error mashalling json", http.StatusInternalServerError)
 				return
 			}
 			w.Write(resp)
+			return
 		}
 	}
+	responseErrorInJsonBody(w, "User not found", http.StatusNotFound)
 }
 
-// create users
+// create users POST /api/users
 func createUser(w http.ResponseWriter, r *http.Request) {
 	//decode request json to user struct
 	userReq := user{}
