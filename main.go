@@ -87,6 +87,25 @@ func refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 		if claims.Issuer != "chirpy-refresh" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
+		} else {
+			claims.IssuedAt = jwt.NewNumericDate(time.Now())
+			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour))
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			stringToken, err := token.SignedString([]byte(jwtSecret))
+			if err != nil {
+				http.Error(w, "Error signstring token", http.StatusInternalServerError)
+				return
+			}
+			resp, err := json.Marshal(struct{
+				Token string `json:"token"`
+			}{
+				Token: stringToken,
+			})
+			if err != nil {
+				http.Error(w, "Error marshalling json", http.StatusInternalServerError)
+				return
+			}
+			w.Write(resp)
 		}
 	}
 }
