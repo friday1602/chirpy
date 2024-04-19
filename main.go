@@ -19,6 +19,7 @@ import (
 
 type apiConfig struct {
 	fileserverHits int
+	db             *database.DB
 }
 type chripyParams struct {
 	Body string `json:"body"`
@@ -47,6 +48,11 @@ func main() {
 	fileServer := http.FileServer(http.Dir("./app"))
 	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer))) //* for wildcard
 
+	apiCfg.db, err = database.NewUserDB("userDatabase.json")
+	if err != nil {
+		log.Println(err)
+	}
+
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
 
 	mux.HandleFunc("/api/reset", apiCfg.reset)
@@ -62,7 +68,8 @@ func main() {
 	mux.HandleFunc("POST /api/users", createUser)
 	mux.HandleFunc("POST /api/login", userValidation)
 	mux.HandleFunc("PUT /api/users", updateUser)
-	mux.HandleFunc("POST /api/refresh", refreshTokenAuth)
+	mux.HandleFunc("POST /api/refresh", apiCfg.refreshTokenAuth)
+	mux.HandleFunc("POST /api/revoke", apiCfg.revokeToken)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
@@ -70,8 +77,35 @@ func main() {
 	log.Fatal(err)
 }
 
+// POST /api/revoke
+func (a *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
+	authString := r.Header.Get("Authorization")
+	tokenFromHeader := authString[len("Bearer "):]
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtToken, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	if claims, ok := jwtToken.Claims.(*CustomClaims); ok {
+		if claims.Issuer != "chirpy-refresh" {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+		// revoke the refresh token in the database
+		err := a.db.RevokeToken(claims.UserID)
+		if err != nil {
+			http.Error(w, "Error revoking token", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 // POST /api/refresh
-func refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
+func (a *apiConfig) refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 	authString := r.Header.Get("Authorization")
 
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -87,26 +121,36 @@ func refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 		if claims.Issuer != "chirpy-refresh" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
-		} else {
-			claims.IssuedAt = jwt.NewNumericDate(time.Now())
-			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour))
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			stringToken, err := token.SignedString([]byte(jwtSecret))
-			if err != nil {
-				http.Error(w, "Error signstring token", http.StatusInternalServerError)
-				return
-			}
-			resp, err := json.Marshal(struct{
-				Token string `json:"token"`
-			}{
-				Token: stringToken,
-			})
-			if err != nil {
-				http.Error(w, "Error marshalling json", http.StatusInternalServerError)
-				return
-			}
-			w.Write(resp)
 		}
+		users, err := a.db.GetUser()
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+		if users[claims.UserID].RefreshToken != tokenFromHeader {
+			http.Error(w, "Invalid Token", http.StatusUnauthorized)
+			return
+		}
+
+		claims.Issuer = "chirpy-access"
+		claims.IssuedAt = jwt.NewNumericDate(time.Now())
+		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour))
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		stringToken, err := token.SignedString([]byte(jwtSecret))
+		if err != nil {
+			http.Error(w, "Error signstring token", http.StatusInternalServerError)
+			return
+		}
+		resp, err := json.Marshal(struct {
+			Token string `json:"token"`
+		}{
+			Token: stringToken,
+		})
+		if err != nil {
+			http.Error(w, "Error marshalling json", http.StatusInternalServerError)
+			return
+		}
+		w.Write(resp)
+
 	}
 }
 

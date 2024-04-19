@@ -13,6 +13,7 @@ type User struct {
 	Email    string `json:"email"`
 	ID       int    `json:"id"`
 	Password []byte `json:"password"`
+	RefreshToken string
 }
 
 type DBUserStructure struct {
@@ -141,4 +142,22 @@ func (db *DB) UpdateUserDB(ID int, body string,password []byte) (User, error) {
 	}
 	return dbStructure.Users[ID], nil
 
+}
+
+// revoke refresh token 
+func (db *DB) RevokeToken(ID int) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	dbStructure,err := db.loadUserDB()
+	if err != nil {
+		return err
+	}
+
+	if user, ok := dbStructure.Users[ID]; ok {
+		user.RefreshToken = ""
+		dbStructure.Users[ID] = user
+	}
+
+	return nil
 }
