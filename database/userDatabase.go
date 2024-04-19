@@ -13,7 +13,7 @@ type User struct {
 	Email        string `json:"email"`
 	ID           int    `json:"id"`
 	Password     []byte `json:"password"`
-	RefreshToken string
+	RefreshToken string `json:"refreshToken"`
 }
 
 type DBUserStructure struct {
@@ -136,11 +136,10 @@ func (db *DB) UpdateUserDB(ID int, body string, password []byte) (User, error) {
 		return User{}, err
 	}
 
-	// update password of user
-	dbStructure.Users[ID] = User{
-		Email:    body,
-		ID:       ID,
-		Password: password,
+	if user, ok := dbStructure.Users[ID]; ok {
+		user.Email = body
+		user.Password = password
+		dbStructure.Users[ID] = user
 	}
 
 	err = db.writeUserDB(dbStructure)
@@ -166,6 +165,11 @@ func (db *DB) RevokeToken(ID int) error {
 		dbStructure.Users[ID] = user
 	}
 
+	err = db.writeUserDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -182,6 +186,11 @@ func (db *DB) StoreToken(ID int, token string) error {
 	if user, ok := dbStructure.Users[ID]; ok {
 		user.RefreshToken = token
 		dbStructure.Users[ID] = user
+	}
+
+	err = db.writeUserDB(dbStructure)
+	if err != nil {
+		return err
 	}
 
 	return nil

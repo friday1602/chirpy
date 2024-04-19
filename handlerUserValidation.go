@@ -89,13 +89,9 @@ func (a *apiConfig) userValidation(w http.ResponseWriter, r *http.Request) {
 			}
 
 			resp, err := json.Marshal(struct {
-				ID           int    `json:"id"`
-				Email        string `json:"email"`
 				Token        string `json:"token"`
 				RefreshToken string `json:"refresh_token"`
 			}{
-				ID:           user.ID,
-				Email:        user.Email,
 				Token:        signedStringToken,
 				RefreshToken: signedStringRefreshToken,
 			})
