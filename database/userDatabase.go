@@ -10,9 +10,9 @@ import (
 )
 
 type User struct {
-	Email    string `json:"email"`
-	ID       int    `json:"id"`
-	Password []byte `json:"password"`
+	Email        string `json:"email"`
+	ID           int    `json:"id"`
+	Password     []byte `json:"password"`
 	RefreshToken string
 }
 
@@ -72,6 +72,13 @@ func (db *DB) GetUser() ([]User, error) {
 	sort.Slice(users, func(i, j int) bool { return users[i].ID < users[j].ID })
 	return users, nil
 }
+func (db *DB) GetUserByID(ID int) (User, error){
+	users, err := db.GetUser()
+	if err != nil {
+		return User{}, err
+	}
+	return users[ID - 1], nil
+}
 
 // ensureDB creates a new database file if it doesn't exist
 func (db *DB) ensureUserDB() error {
@@ -119,7 +126,7 @@ func (db *DB) writeUserDB(dbUserStructure DBUserStructure) error {
 }
 
 // updateUserDB updates existing user password
-func (db *DB) UpdateUserDB(ID int, body string,password []byte) (User, error) {
+func (db *DB) UpdateUserDB(ID int, body string, password []byte) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
@@ -144,18 +151,36 @@ func (db *DB) UpdateUserDB(ID int, body string,password []byte) (User, error) {
 
 }
 
-// revoke refresh token 
+// revoke refresh token
 func (db *DB) RevokeToken(ID int) error {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	dbStructure,err := db.loadUserDB()
+	dbStructure, err := db.loadUserDB()
 	if err != nil {
 		return err
 	}
 
 	if user, ok := dbStructure.Users[ID]; ok {
 		user.RefreshToken = ""
+		dbStructure.Users[ID] = user
+	}
+
+	return nil
+}
+
+// store refresh token to db
+func (db *DB) StoreToken(ID int, token string) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	dbStructure, err := db.loadUserDB()
+	if err != nil {
+		return err
+	}
+
+	if user, ok := dbStructure.Users[ID]; ok {
+		user.RefreshToken = token
 		dbStructure.Users[ID] = user
 	}
 

@@ -82,6 +82,12 @@ func (a *apiConfig) userValidation(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			err = a.db.StoreToken(user.ID, signedStringRefreshToken)
+			if err != nil {
+				http.Error(w, "error storing refresh token", http.StatusInternalServerError)
+				return
+			}
+
 			resp, err := json.Marshal(struct {
 				ID           int    `json:"id"`
 				Email        string `json:"email"`

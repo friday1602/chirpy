@@ -31,7 +31,7 @@ func (a *apiConfig) refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
-		if users[claims.UserID].RefreshToken != tokenFromHeader {
+		if users[claims.UserID - 1].RefreshToken != tokenFromHeader {
 			http.Error(w, "Invalid Token", http.StatusUnauthorized)
 			return
 		}
