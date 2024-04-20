@@ -72,12 +72,16 @@ func (db *DB) GetUser() ([]User, error) {
 	sort.Slice(users, func(i, j int) bool { return users[i].ID < users[j].ID })
 	return users, nil
 }
-func (db *DB) GetUserByID(ID int) (User, error){
+
+func (db *DB) GetUserByID(ID int) (User, error) {
 	users, err := db.GetUser()
 	if err != nil {
 		return User{}, err
 	}
-	return users[ID - 1], nil
+	if len(users) < ID || ID <= 0 {
+		return User{}, errors.New("invalid ID")
+	}
+	return users[ID-1], nil
 }
 
 // ensureDB creates a new database file if it doesn't exist

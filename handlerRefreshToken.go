@@ -11,31 +11,29 @@ import (
 
 // POST /api/refresh
 func (a *apiConfig) refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
-	authString := r.Header.Get("Authorization")
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-	tokenFromHeader := authString[len("Bearer "):]
-	token, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
+	token, err := validateToken(r)
 	if err != nil {
-		http.Error(w, "Invalid Token", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		if claims.Issuer != "chirpy-refresh" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		users, err := a.db.GetUser()
+		user, err := a.db.GetUserByID(claims.UserID)
 		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		if users[claims.UserID - 1].RefreshToken != tokenFromHeader {
+
+		if user.RefreshToken != token.Raw {
 			http.Error(w, "Invalid Token", http.StatusUnauthorized)
 			return
 		}
 
+		jwtSecret := os.Getenv("JWT_SECRET")
 		claims.Issuer = "chirpy-access"
 		claims.IssuedAt = jwt.NewNumericDate(time.Now())
 		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour))

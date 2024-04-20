@@ -3,24 +3,16 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // PUT /api/users endpoint
 func (a *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	// get token from auth header
-	authHeader := r.Header.Get("Authorization")
-
-	jwtSecret := os.Getenv("JWT_SECRET")
-	tokenFromHeader := authHeader[len("Bearer "):] // trim Bearer from auth.. the rest is token
-	token, err := jwt.ParseWithClaims(tokenFromHeader, &CustomClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
+	token, err := validateToken(r)
 	if err != nil {
-		http.Error(w, "Invalid Token", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 

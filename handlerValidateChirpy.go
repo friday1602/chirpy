@@ -7,6 +7,7 @@ import (
 )
 
 // validate if chirpy is valid. if valid response json valid body. if not response json error body
+// POST /api/chrips
 func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 
 	// decode json body and check for error
