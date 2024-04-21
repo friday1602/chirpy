@@ -7,7 +7,7 @@ import (
 
 func (a *apiConfig) getChirpy(w http.ResponseWriter, r *http.Request) {
 
-	chirps, err := a.db.GetChirps()
+	chirps, err := a.chirpyDatabase.GetChirps()
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

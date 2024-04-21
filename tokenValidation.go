@@ -30,3 +30,15 @@ func validateToken(r *http.Request) (*jwt.Token, error) {
 	}
 	return token, nil
 }
+
+// check if token's type is access token
+// return true if it is access token
+func isAcessToken(claimsIssuer string) bool {
+	return claimsIssuer == "chirpy-access"
+}
+
+// check if token's type is refresh token
+// return true if it is access token
+func isRefreshToken(claimsIssuer string) bool {
+	return claimsIssuer == "chirpy-refresh"
+}

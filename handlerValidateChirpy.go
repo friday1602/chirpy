@@ -10,9 +10,24 @@ import (
 // POST /api/chrips
 func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 
+	token, err := validateToken(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	var userID int
+	if claims, ok := token.Claims.(*CustomClaims); ok {
+		if !isAcessToken(claims.Issuer) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		} 
+		userID = claims.UserID
+	}
+
 	// decode json body and check for error
 	chirpyParam := chripyParams{}
-	err := json.NewDecoder(r.Body).Decode(&chirpyParam)
+	err = json.NewDecoder(r.Body).Decode(&chirpyParam)
 	if err != nil {
 		http.Error(w, "Something went wrong", http.StatusBadRequest)
 		return
@@ -34,7 +49,7 @@ func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	cleanedChirpy := strings.Join(stringChirpy, " ")
-	createdDB, err := a.db.CreateChirp(cleanedChirpy)
+	createdDB, err := a.chirpyDatabase.CreateChirp(cleanedChirpy, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

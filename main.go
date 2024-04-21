@@ -12,6 +12,7 @@ import (
 type apiConfig struct {
 	fileserverHits int
 	db             *database.DB
+	chirpyDatabase *database.DB
 }
 type chripyParams struct {
 	Body string `json:"body"`
@@ -41,6 +42,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	apiCfg.chirpyDatabase, err = database.NewDB("chirpyDatabase.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
 

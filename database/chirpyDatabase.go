@@ -10,8 +10,9 @@ import (
 )
 
 type Chirp struct {
-	Body string `json:"body"`
-	ID   int    `json:"id"`
+	AuthorID int    `json:"author_id"`
+	Body     string `json:"body"`
+	ID       int    `json:"id"`
 }
 
 type DB struct {
@@ -36,7 +37,7 @@ func NewDB(path string) (*DB, error) {
 }
 
 // create a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, authorID int) (Chirp, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
@@ -47,7 +48,11 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	}
 	nextID := len(dbStructure.Chirps) + 1
 
-	dbStructure.Chirps[nextID] = Chirp{Body: body, ID: nextID}
+	dbStructure.Chirps[nextID] = Chirp{
+		AuthorID: authorID,
+		Body:     body,
+		ID:       nextID,
+	}
 	err = db.writeDB(dbStructure)
 	if err != nil {
 		return Chirp{}, err

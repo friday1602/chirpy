@@ -10,6 +10,8 @@ import (
 )
 
 // POST /api/refresh
+// refreshTokenAuth authorizes user with refresh token on the database
+// then sending new access-token to the user.
 func (a *apiConfig) refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 
 	token, err := validateToken(r)
@@ -19,7 +21,7 @@ func (a *apiConfig) refreshTokenAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
-		if claims.Issuer != "chirpy-refresh" {
+		if !isRefreshToken(claims.Issuer) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

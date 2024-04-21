@@ -17,7 +17,7 @@ func (a *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
-		if claims.Issuer != "chirpy-access" {
+		if !isAcessToken(claims.Issuer) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

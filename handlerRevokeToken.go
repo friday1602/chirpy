@@ -5,6 +5,8 @@ import (
 )
 
 // POST /api/revoke
+// revokeToken revokes the refresh-token in the database
+// then creates and sends new refresh-token to the user and the database.
 func (a *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
 
 	token, err := validateToken(r)
@@ -13,7 +15,7 @@ func (a *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
-		if claims.Issuer != "chirpy-refresh" {
+		if !isRefreshToken(claims.Issuer) {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
