@@ -65,6 +65,7 @@ func main() {
 	mux.HandleFunc("PUT /api/users", apiCfg.updateUser)
 	mux.HandleFunc("POST /api/refresh", apiCfg.refreshTokenAuth)
 	mux.HandleFunc("POST /api/revoke", apiCfg.revokeToken)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.deleteChirpyFromID)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
