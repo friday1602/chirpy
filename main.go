@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Friday1602/chirpy/database"
+	"github.com/friday1602/chirpy/database"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 )
@@ -46,7 +46,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
 
