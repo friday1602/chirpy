@@ -124,3 +124,41 @@ func (db *DB) writeDB(dbStructure DBStructure) error {
 	return nil
 
 }
+
+// get chirpy from id
+func (db *DB) GetChirpyFromID(ID int) (Chirp, error) {
+	chirps, err := db.GetChirps()
+	if err != nil {
+		return Chirp{}, err
+	}
+	if len(chirps) < ID || ID <= 0 {
+		return Chirp{}, errors.New("invalid ID")
+	}
+	return chirps[ID-1], nil
+}
+
+// delete chirpy from id
+func (db *DB) DeleteDB(authorId int, ID int) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+	
+	if chirp, ok := dbStructure.Chirps[ID]; ok {
+		if chirp.AuthorID != authorId {
+			return errors.New("forbidden")
+		}
+	} else {
+		return errors.New("invalid chirpy ID")
+	}
+
+	delete(dbStructure.Chirps, ID)
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+	return nil
+}

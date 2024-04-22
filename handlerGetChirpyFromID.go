@@ -15,19 +15,12 @@ func (a *apiConfig) getChirpyFromID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chirps, err := a.db.GetChirps()
+	chirp, err := a.chirpyDatabase.GetChirpyFromID(ID)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	// check if ID is in database ID range
-	if ID > len(chirps) || ID <= 0 {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	resp, err := json.Marshal(chirps[ID-1])
+	resp, err := json.Marshal(chirp)
 	if err != nil {
 		http.Error(w, "Error marshalling json", http.StatusInternalServerError)
 		return
