@@ -51,9 +51,11 @@ func (a *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(struct {
 		Email string `json:"email"`
 		ID    int    `json:"id"`
+		IsChirpyRed bool `json:"is_chirpy_red"`
 	}{
 		Email: createdDB.Email,
 		ID:    createdDB.ID,
+		IsChirpyRed: createdDB.IsChirpyRed,
 	})
 	if err != nil {
 		http.Error(w, "Error Encoding json", http.StatusInternalServerError)

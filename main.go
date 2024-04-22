@@ -65,6 +65,7 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", apiCfg.refreshTokenAuth)
 	mux.HandleFunc("POST /api/revoke", apiCfg.revokeToken)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.deleteChirpyFromID)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.upgradeToRedChirpy)
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")

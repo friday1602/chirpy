@@ -14,6 +14,7 @@ type User struct {
 	ID           int    `json:"id"`
 	Password     []byte `json:"password"`
 	RefreshToken string `json:"refreshToken"`
+	IsChirpyRed  bool   `json:"is_chirpy_red"`
 }
 
 type DBUserStructure struct {
@@ -152,6 +153,30 @@ func (db *DB) UpdateUserDB(ID int, body string, password []byte) (User, error) {
 	}
 	return dbStructure.Users[ID], nil
 
+}
+
+// upgrade user to red chirpy
+func (db *DB) UpgradeUser (ID int) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	dbStructure, err := db.loadUserDB()
+	if err != nil {
+		return err
+	}
+
+	if user, ok := dbStructure.Users[ID]; ok {
+		user.IsChirpyRed = true
+		dbStructure.Users[ID] = user
+	} else {
+		return errors.New("invalid user id")
+	}
+
+	err = db.writeUserDB(dbStructure)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // revoke refresh token

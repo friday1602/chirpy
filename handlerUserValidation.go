@@ -91,9 +91,11 @@ func (a *apiConfig) userValidation(w http.ResponseWriter, r *http.Request) {
 			resp, err := json.Marshal(struct {
 				Token        string `json:"token"`
 				RefreshToken string `json:"refresh_token"`
+				IsChirpyRed bool `json:"is_chirpy_red"`
 			}{
 				Token:        signedStringToken,
 				RefreshToken: signedStringRefreshToken,
+				IsChirpyRed: user.IsChirpyRed,
 			})
 			if err != nil {
 				http.Error(w, "Error mashalling json", http.StatusInternalServerError)
