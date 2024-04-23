@@ -162,3 +162,22 @@ func (db *DB) DeleteDB(authorId int, ID int) error {
 	}
 	return nil
 }
+
+
+// get chirps by auther id 
+func (db *DB) GetChirpsByAuthorID(autherID int) ([]Chirp, error) {
+	chirps, err := db.GetChirps()
+	if err != nil {
+		return nil, err
+	}
+
+	var authChirps []Chirp
+	for _, chirp := range chirps {
+		if chirp.AuthorID == autherID {
+			authChirps = append(authChirps, chirp)
+		}
+	}
+
+	return authChirps, nil
+
+}
