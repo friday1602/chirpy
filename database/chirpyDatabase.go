@@ -138,7 +138,7 @@ func (db *DB) GetChirpyFromID(ID int) (Chirp, error) {
 }
 
 // delete chirpy from id
-func (db *DB) DeleteDB(authorId int, ID int) error {
+func (db *DB) DeleteDB(authorID int, ID int) error {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
@@ -146,9 +146,9 @@ func (db *DB) DeleteDB(authorId int, ID int) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if chirp, ok := dbStructure.Chirps[ID]; ok {
-		if chirp.AuthorID != authorId {
+		if chirp.AuthorID != authorID {
 			return errors.New("forbidden")
 		}
 	} else {
@@ -163,8 +163,7 @@ func (db *DB) DeleteDB(authorId int, ID int) error {
 	return nil
 }
 
-
-// get chirps by auther id 
+// get chirps by auther id
 func (db *DB) GetChirpsByAuthorID(autherID int) ([]Chirp, error) {
 	chirps, err := db.GetChirps()
 	if err != nil {
