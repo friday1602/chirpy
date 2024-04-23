@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -10,13 +10,13 @@ import (
 )
 
 func (a *apiConfig) getChirpy(w http.ResponseWriter, r *http.Request) {
-	autherID := r.URL.Query().Get("auther_id")
+	authorID := r.URL.Query().Get("author_id")
 	sortChirp := r.URL.Query().Get("sort")
 
 	var chirps []database.Chirp
 	var err error
-	if autherID != "" {
-		authID, err := strconv.Atoi(autherID)
+	if authorID != "" {
+		authID, err := strconv.Atoi(authorID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -41,11 +41,8 @@ func (a *apiConfig) getChirpy(w http.ResponseWriter, r *http.Request) {
 		sort.Slice(chirps, func(i, j int) bool { return chirps[i].ID > chirps[j].ID })
 	}
 
-	resp, err := json.Marshal(chirps)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	for _, c := range chirps {
+		fmt.Fprintf(w, "%s\n", c.Body)
 	}
-	w.Write(resp)
 
 }
