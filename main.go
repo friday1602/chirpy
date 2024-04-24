@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/friday1602/chirpy/database"
 	"github.com/golang-jwt/jwt/v5"
@@ -28,6 +30,21 @@ type CustomClaims struct {
 }
 
 func main() {
+	dbg := flag.Bool("debug", false, "Enable debug mode")
+	flag.Parse()
+
+	if *dbg {
+		err := os.Remove("chirpyDatabase.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = os.Remove("userDatabase.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("error loading .env file")
