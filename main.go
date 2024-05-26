@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/friday1602/chirpy/database"
 	"github.com/golang-jwt/jwt/v5"
@@ -86,6 +87,12 @@ func main() {
 
 	corsMux := middlewareCors(mux)
 	log.Print("starting server on :8080")
-	err = http.ListenAndServe(":8080", corsMux)
+	port := os.Getenv("PORT")
+	srv := http.Server{
+		Addr: ":" + port,
+		Handler: corsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	err = srv.ListenAndServe()
 	log.Fatal(err)
 }
