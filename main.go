@@ -34,21 +34,24 @@ func main() {
 	dbg := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
 
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime)
+
 	if *dbg {
 		err := os.Remove("chirpyDatabase.json")
 		if err != nil {
-			log.Fatal(err)
+			errorLog.Fatal(err)
 		}
 
 		err = os.Remove("userDatabase.json")
 		if err != nil {
-			log.Fatal(err)
+			errorLog.Fatal(err)
 		}
 	}
-	
+
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("error loading .env file")
+		errorLog.Fatal("error loading .env file")
 	}
 
 	mux := http.NewServeMux()
@@ -58,11 +61,11 @@ func main() {
 
 	apiCfg.db, err = database.NewUserDB("userDatabase.json")
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 	apiCfg.chirpyDatabase, err = database.NewDB("chirpyDatabase.json")
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
@@ -86,13 +89,14 @@ func main() {
 	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.upgradeToRedChirpy)
 
 	corsMux := middlewareCors(mux)
-	log.Print("starting server on :8080")
+	infoLog.Print("starting server on :8080")
 	port := os.Getenv("PORT")
 	srv := http.Server{
-		Addr: ":" + port,
-		Handler: corsMux,
+		Addr:              ":" + port,
+		Handler:           corsMux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ErrorLog: errorLog,
 	}
 	err = srv.ListenAndServe()
-	log.Fatal(err)
+	errorLog.Fatal(err)
 }
