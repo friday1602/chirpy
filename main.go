@@ -16,6 +16,8 @@ type apiConfig struct {
 	fileserverHits int
 	db             *database.DB
 	chirpyDatabase *database.DB
+	infoLog        *log.Logger
+	errorLog       *log.Logger
 }
 type chripyParams struct {
 	Body string `json:"body"`
@@ -55,7 +57,10 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	apiCfg := &apiConfig{}
+	apiCfg := &apiConfig{
+		errorLog: errorLog,
+		infoLog:  infoLog,
+	}
 	fileServer := http.FileServer(http.Dir("./app"))
 	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer))) //* for wildcard
 
@@ -95,7 +100,7 @@ func main() {
 		Addr:              ":" + port,
 		Handler:           corsMux,
 		ReadHeaderTimeout: 5 * time.Second,
-		ErrorLog: errorLog,
+		ErrorLog:          errorLog,
 	}
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
