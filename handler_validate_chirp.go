@@ -12,7 +12,6 @@ func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 
 	token, err := validateToken(r)
 	if err != nil {
-		a.errorLog.Print(err.Error())
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -30,7 +29,6 @@ func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 	chirpyParam := chripyParams{}
 	err = json.NewDecoder(r.Body).Decode(&chirpyParam)
 	if err != nil {
-		a.errorLog.Print(err.Error())
 		http.Error(w, "Something went wrong", http.StatusBadRequest)
 		return
 	}
@@ -53,7 +51,6 @@ func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 	cleanedChirpy := strings.Join(stringChirpy, " ")
 	createdDB, err := a.chirpyDatabase.CreateChirp(cleanedChirpy, userID)
 	if err != nil {
-		a.errorLog.Print(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -61,7 +58,6 @@ func (a *apiConfig) validateChirpy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(&createdDB)
 	if err != nil {
-		a.errorLog.Print(err.Error())
 		http.Error(w, "Error Encoding json", http.StatusInternalServerError)
 		return
 	}

@@ -29,10 +29,12 @@ func (cfg *apiConfig) metrics(w http.ResponseWriter, r *http.Request) {
 	`
 	t, err := template.New("admin").Parse(tmpl)
 	if err != nil {
+		cfg.errorLog.Print(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	if err := t.Execute(w, hits); err != nil {
+		cfg.errorLog.Print(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
