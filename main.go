@@ -70,13 +70,11 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
-
-	corsMux := middlewareCors(apiCfg.routes())
 	port := os.Getenv("PORT")
 	infoLog.Print("starting server on :", port)
 	srv := http.Server{
 		Addr:              ":" + port,
-		Handler:           corsMux,
+		Handler:           apiCfg.routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ErrorLog:          errorLog,
 	}

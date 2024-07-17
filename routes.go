@@ -2,7 +2,7 @@ package main
 
 import "net/http"
 
-func (apiCfg *apiConfig) routes() *http.ServeMux {
+func (apiCfg *apiConfig) routes() http.Handler {
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.Dir("./app"))
 	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer))) //* for wildcard
@@ -26,5 +26,5 @@ func (apiCfg *apiConfig) routes() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.deleteChirpyFromID)
 	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.upgradeToRedChirpy)
 
-	return mux
+	return middlewareCors(mux)
 }
